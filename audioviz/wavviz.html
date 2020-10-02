@@ -10,10 +10,11 @@ body {
 
 #log {
 	background-color: black;
-	color: car;
+	color: chartreuse;
 }
 
 	</style>
+	<script type="text/javascript" src="helpers.js"></script>
 </head>
 <body>
 
@@ -47,10 +48,17 @@ body {
 
 
 	<script>
+		;(function (window, document) {
 
+	//
+	// Variables
+	//
+// html elements
 const fileSelector = document.getElementById('file-selector');
 const startButton = document.getElementsByClassName('start')[0]
 const stopButton = document.getElementsByClassName('stop')[0]
+
+const log = document.getElementById('log');
 
 const slider = document.getElementById("myRange");
 var output = document.getElementById("demo");
@@ -62,7 +70,6 @@ slider.oninput = function () {
 
 const levelDisplay = document.getElementsByClassName('level__display')[0]
 
-const log = document.getElementById('log');
 function addLog(data) {
 	const newLog = document.createElement('div')
 	newLog.classList.add('log-item');
@@ -71,15 +78,22 @@ function addLog(data) {
 	log.appendChild(newLog)
 }
 
+// web audio objects
 var AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioContext = new AudioContext();
 
 const masterGain = audioContext.createGain();
-masterGain.connect(audioContext.destination);
-
 const analyser = audioContext.createAnalyser();
+
+masterGain.connect(audioContext.destination);
 masterGain.connect(analyser);
 
+//
+// Methods
+//
+/**
+ * called by input type file
+ */
 async function loadSound (event) {
 
 	const self = this;
@@ -91,14 +105,16 @@ async function loadSound (event) {
 
 	console.log(audioFileSource)
 
+	/**
+	 * @param AudioBuffer
+	 * returns AudioSourceNode
+	 */
 	function createNewAudioBufSource (audioFileBuffer) {
-
 		const audioDestinationArray = new Float32Array(
 				audioFileBuffer.numberOfChannels 
 			* audioFileBuffer.duration
 			* audioFileBuffer.sampleRate
 		);
-
 
 		audioFileBuffer.copyFromChannel(audioDestinationArray, 0);
 		const bufSource = audioContext.createBufferSource();
@@ -124,16 +140,20 @@ async function loadSound (event) {
 		audioBufSource = createNewAudioBufSource(audioFileSource);
 	})
 
+	output.innerHTML = slider.value;
+
 	slider.oninput = function() {
 		const val = (this.value/100) * 3;
 	  output.innerHTML = val;
 	  audioBufSource.playbackRate = val;
 	}
 
+	const waveform = new Float32Array(analyser.frequencyBinCount);
+	analyser.getFloatTimeDomainData(waveform);
 
-	const waveform = new Float32Array(analyser.frequencyBinCount)
-	analyser.getFloatTimeDomainData(waveform)
-
+	//
+	// Canvas functions
+	// 
 	;(function updateWaveform() {
 	  requestAnimationFrame(updateWaveform)
 	  analyser.getFloatTimeDomainData(waveform)
@@ -143,59 +163,17 @@ async function loadSound (event) {
 	const scopeCanvas = document.getElementById('oscilloscope')
 	scopeCanvas.width = waveform.length
 	scopeCanvas.height = 200
-	const scopeContext = scopeCanvas.getContext('2d')
-	console.log(self)
+	const scopeContext = scopeCanvas.getContext('2d');
+	const canHlp = new canvasHelpers(scopeContext, scopeCanvas);
+	canHlp.drawOscilloscope(waveform);
 
-	var output = document.getElementById("demo");
-	output.innerHTML = slider.value;
-
-	;(function drawOscilloscope() {
-		requestAnimationFrame(drawOscilloscope)
-		scopeContext.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height)
-		scopeContext.beginPath()
-		let circle = [0], circle_i = 0;
-		for (let i = 0; i < waveform.length; i++) {
-		  const x = i
-		  const y = (0.5 + waveform[i] / 2) * scopeCanvas.height;
-		  if (i == 0) {
-		    scopeContext.moveTo(x, y)
-		  } else {
-		    scopeContext.lineTo(x, y)
-		  }
-		  // levelDisplay.innerHtml = waveform[0];
-			if (i === (waveform.length/4)) {
-				scopeContext.font = '50px serif';
-				drawText(waveform[0], 50, 90);
-				circle_i = circle_i === 100 ? 0 : circle_i + 1;
-				if(waveform[i]) {
-					circle[circle_i] = waveform[i];
-				}
-			}
-		}
-		scopeContext.stroke()
-
-		const something = circle
-			.map((x) => x + 0.5)
-			.reduce((acc, val) => acc / val)
-		drawText(something,  300, 150);
-		drawLine(50, 100, something);	
-	})()
-
-	function drawText (text, x, y) {
-		const xOffset = -20, yOffset = 30
-		scopeContext.strokeText(text, x, y);
-		scopeContext.fillText(text, x + xOffset, y + yOffset);
-	}
-
-	function drawLine (x, y, val) {
-		scopeContext.beginPath()
-		scopeContext.moveTo(x, y);
-		scopeContext.lineTo(x + (500 * val), y)
-	  scopeContext.stroke()
-	}
 }
+//
+// Inits & Event Listeners
+//
 fileSelector.addEventListener('change', loadSound);
 
+})(window, document);
 </script>
 
 </body>
