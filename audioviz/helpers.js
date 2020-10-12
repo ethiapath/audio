@@ -1,7 +1,36 @@
 // helpers.js
 // (function (window, document) {
+const create = (tagName) => document.createElement(tagName);
 
 	console.log('hello from the helpers');
+	class AudioPlayer {
+		/*
+		 *
+		 *
+		 * Creates an maintains an audio buffer with UI
+		 */
+		constructor (audioContext) {
+			this.audioCtx = audioContext;
+
+
+		}
+
+		createHTML () {
+			// container
+			const c = create('div');
+
+			const createFileInput () => {
+				const fileSelector = create('input');
+				fileSelector.setAttribute('type', 'file');
+				fileSelector.setAttribute('id', 'file-selector');
+			}
+			const fileSelector = createFileInput();
+
+
+
+		}
+
+	}
 
 	class canvasHelpers {
 		constructor (canvasElement) {
