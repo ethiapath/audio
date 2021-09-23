@@ -4,22 +4,33 @@
 <head>
 	<title>wav viz</title>
 	<style type="text/css">
-body {
-	font-size: 62.5%;
-}	
 
-#log {
-	background-color: black;
-	color: chartreuse;
-}
+		body {
+			font-size: 62.5%;
+			background-color: black;
+			color: white;
+		}	
+
+		#log {
+			background-color: black;
+			color: chartreuse;
+			font-family: monospace;
+		}
+
+		.visualizer {
+
+		}
+
 
 	</style>
+	<style src="style.css"></style>
 	<script type="text/javascript" src="helpers.js"></script>
 </head>
 <body>
 
-	<div id="vizualizer"></div>
-	<canvas id="oscilloscope"></canvas>
+	<div id="vizualizer">
+		<canvas id="oscilloscope"></canvas>
+	</div>
 
 
   <div class="container">
@@ -58,25 +69,28 @@ const fileSelector = document.getElementById('file-selector');
 const startButton = document.getElementsByClassName('start')[0]
 const stopButton = document.getElementsByClassName('stop')[0]
 
+
 const log = document.getElementById('log');
 
 const slider = document.getElementById("myRange");
 var output = document.getElementById("demo");
 output.innerHTML = slider.value;
 
+let volume = 0;
 slider.oninput = function () {
 	output.innerHTML = this.value
+	volume = this.value
 }
-
 const levelDisplay = document.getElementsByClassName('level__display')[0]
 
 function addLog(data) {
 	const newLog = document.createElement('div')
 	newLog.classList.add('log-item');
-	const newContent = document.createTextNode(data);
+	newLog.appendChild(document.createTextNode(data));
 
 	log.appendChild(newLog)
 }
+addLog('starting audio context');
 
 // web audio objects
 var AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -87,6 +101,24 @@ const analyser = audioContext.createAnalyser();
 
 masterGain.connect(audioContext.destination);
 masterGain.connect(analyser);
+
+/**
+	* @param AudioBuffer
+	* returns AudioSourceNode
+	*/
+function createNewAudioBufSource (audioFileBuffer) {
+	const audioDestinationArray = new Float32Array(
+		audioFileBuffer.numberOfChannels 
+		* audioFileBuffer.duration
+		* audioFileBuffer.sampleRate
+	);
+
+	audioFileBuffer.copyFromChannel(audioDestinationArray, 0);
+	const bufSource = audioContext.createBufferSource();
+	bufSource.buffer = audioFileBuffer;
+	return bufSource;
+}
+
 
 //
 // Methods
@@ -103,24 +135,7 @@ async function loadSound (event) {
 	// const buf = new Uint8Array(buffer);
 	const audioFileSource = await audioContext.decodeAudioData(buffer)
 
-	console.log(audioFileSource)
-
-	/**
-	 * @param AudioBuffer
-	 * returns AudioSourceNode
-	 */
-	function createNewAudioBufSource (audioFileBuffer) {
-		const audioDestinationArray = new Float32Array(
-				audioFileBuffer.numberOfChannels 
-			* audioFileBuffer.duration
-			* audioFileBuffer.sampleRate
-		);
-
-		audioFileBuffer.copyFromChannel(audioDestinationArray, 0);
-		const bufSource = audioContext.createBufferSource();
-		bufSource.buffer = audioFileSource;
-		return bufSource;
-	}
+	console.log('audioFileSource', audioFileSource)
 
 	let audioBufSource = createNewAudioBufSource(audioFileSource);
 	// audioBufSource.connect(masterGain);
@@ -130,7 +145,7 @@ async function loadSound (event) {
 	startButton.addEventListener('click', () => {
 		audioBufSource.connect(masterGain);
 		audioBufSource.start();
-	})
+	});
 
 	stopButton.addEventListener('click', () => {
 		audioBufSource.stop();
@@ -138,14 +153,14 @@ async function loadSound (event) {
 		delete audioBufSource.buffer;
 		delete audioFileSource;
 		audioBufSource = createNewAudioBufSource(audioFileSource);
-	})
+	});
 
 	output.innerHTML = slider.value;
 
 	slider.oninput = function() {
 		const val = (this.value/100) * 3;
-	  output.innerHTML = val;
-	  audioBufSource.playbackRate = val;
+		output.innerHTML = val;
+		audioBufSource.playbackRate = val;
 	}
 
 	const waveform = new Float32Array(analyser.frequencyBinCount);
@@ -157,17 +172,26 @@ async function loadSound (event) {
 	;(function updateWaveform() {
 	  requestAnimationFrame(updateWaveform)
 	  analyser.getFloatTimeDomainData(waveform)
-
 	})()
 
+
+
 	const scopeCanvas = document.getElementById('oscilloscope')
+	// scopeCanvas.scrollHeight
 	scopeCanvas.width = waveform.length
 	scopeCanvas.height = 200
 	const scopeContext = scopeCanvas.getContext('2d');
+
 	const canHlp = new canvasHelpers(scopeContext, scopeCanvas);
 	canHlp.drawOscilloscope(waveform);
 
+	window.addEventListener('resize', e => {
+		console.log('resize event', e, window.innerWidth, window.innerHeight);
+		canHlp.resize(window.innerWidth, window.innerHeight);
+	})
+
 }
+
 //
 // Inits & Event Listeners
 //
