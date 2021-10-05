@@ -18,13 +18,13 @@
 		}
 
 		.visualizer {
-
+			width: 70%;
 		}
-
 
 	</style>
 	<style src="style.css"></style>
 	<script type="text/javascript" src="helpers.js"></script>
+	<script type="text/javascript" src="audioInit.js"></script>
 </head>
 <body>
 
@@ -38,7 +38,8 @@
     <div class="level">
     	<span class="level__label">level</span>
     	<span class="level__display"></span>
-    </div>
+	</div>
+
     <div class="slidecontainer">
 		  <input type="range" min="1" max="100" value="50" class="slider" id="myRange">
 		  <p>Value: <span id="demo"></span></p>
@@ -58,146 +59,43 @@
 	<button class="stop">stop</button>
 
 
-	<script>
-		;(function (window, document) {
-
+	<script type="text/javascript" defer>
+;(function (window, document) {
 	//
 	// Variables
 	//
-// html elements
-const fileSelector = document.getElementById('file-selector');
-const startButton = document.getElementsByClassName('start')[0]
-const stopButton = document.getElementsByClassName('stop')[0]
+	// html elements
+	const fileSelector = document.getElementById('file-selector');
+	const levelDisplay = document.getElementsByClassName('level__display')[0]
 
+	// fun in dom debug thing
+	const log = document.getElementById('log');
+	function addLog(data) {
+		const newLog = document.createElement('div')
+		newLog.classList.add('log-item');
+		newLog.appendChild(document.createTextNode(data));
 
-const log = document.getElementById('log');
-
-const slider = document.getElementById("myRange");
-var output = document.getElementById("demo");
-output.innerHTML = slider.value;
-
-let volume = 0;
-slider.oninput = function () {
-	output.innerHTML = this.value
-	volume = this.value
-}
-const levelDisplay = document.getElementsByClassName('level__display')[0]
-
-function addLog(data) {
-	const newLog = document.createElement('div')
-	newLog.classList.add('log-item');
-	newLog.appendChild(document.createTextNode(data));
-
-	log.appendChild(newLog)
-}
-addLog('starting audio context');
-
-// web audio objects
-var AudioContext = window.AudioContext || window.webkitAudioContext;
-const audioContext = new AudioContext();
-
-const masterGain = audioContext.createGain();
-const analyser = audioContext.createAnalyser();
-
-masterGain.connect(audioContext.destination);
-masterGain.connect(analyser);
-
-/**
-	* @param AudioBuffer
-	* returns AudioSourceNode
-	*/
-function createNewAudioBufSource (audioFileBuffer) {
-	const audioDestinationArray = new Float32Array(
-		audioFileBuffer.numberOfChannels 
-		* audioFileBuffer.duration
-		* audioFileBuffer.sampleRate
-	);
-
-	audioFileBuffer.copyFromChannel(audioDestinationArray, 0);
-	const bufSource = audioContext.createBufferSource();
-	bufSource.buffer = audioFileBuffer;
-	return bufSource;
-}
-
-
-//
-// Methods
-//
-/**
- * called by input type file
- */
-async function loadSound (event) {
-
-	const self = this;
-	const fileList = event.target.files;
-	const firstFile = fileList[0];
-	const buffer = await firstFile.arrayBuffer();
-	// const buf = new Uint8Array(buffer);
-	const audioFileSource = await audioContext.decodeAudioData(buffer)
-
-	console.log('audioFileSource', audioFileSource)
-
-	let audioBufSource = createNewAudioBufSource(audioFileSource);
-	// audioBufSource.connect(masterGain);
-
-	console.log(audioBufSource);
-
-	startButton.addEventListener('click', () => {
-		audioBufSource.connect(masterGain);
-		audioBufSource.start();
-	});
-
-	stopButton.addEventListener('click', () => {
-		audioBufSource.stop();
-		audioBufSource.disconnect();	
-		delete audioBufSource.buffer;
-		delete audioFileSource;
-		audioBufSource = createNewAudioBufSource(audioFileSource);
-	});
-
-	output.innerHTML = slider.value;
-
-	slider.oninput = function() {
-		const val = (this.value/100) * 3;
-		output.innerHTML = val;
-		audioBufSource.playbackRate = val;
+		log.appendChild(newLog)
 	}
+	window.addLog = addLog;
+	addLog('starting audio context');
 
-	const waveform = new Float32Array(analyser.frequencyBinCount);
-	analyser.getFloatTimeDomainData(waveform);
+	// web audio objects
+	var AudioContext = window.AudioContext || window.webkitAudioContext;
+	const audioContext = new AudioContext();
+	const masterGain = audioContext.createGain();
+	masterGain.connect(audioContext.destination);
+	const { loadSound } = audioEnviornment(audioContext);
 
 	//
-	// Canvas functions
-	// 
-	;(function updateWaveform() {
-	  requestAnimationFrame(updateWaveform)
-	  analyser.getFloatTimeDomainData(waveform)
-	})()
-
-
-
-	const scopeCanvas = document.getElementById('oscilloscope')
-	// scopeCanvas.scrollHeight
-	scopeCanvas.width = waveform.length
-	scopeCanvas.height = 200
-	const scopeContext = scopeCanvas.getContext('2d');
-
-	const canHlp = new canvasHelpers(scopeContext, scopeCanvas);
-	canHlp.drawOscilloscope(waveform);
-
-	window.addEventListener('resize', e => {
-		console.log('resize event', e, window.innerWidth, window.innerHeight);
-		canHlp.resize(window.innerWidth, window.innerHeight);
-	})
-
-}
-
-//
-// Inits & Event Listeners
-//
-fileSelector.addEventListener('change', loadSound);
+	// Inits & Event Listeners
+	//
+	fileSelector
+		.addEventListener('change', audioEnviornment(audioContext)
+			.loadSound(masterGain));
 
 })(window, document);
+
 </script>
 
 </body>
